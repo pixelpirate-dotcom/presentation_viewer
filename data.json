@@ -7,12 +7,6 @@
       "name": "Aman",
       "topic": "RNA Sequencing Study",
       "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
-    },
-    {
-      "id": 3,
-      "name": "Carol",
-      "topic": "Protein Folding",
-      "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
     }
   ]
 }
