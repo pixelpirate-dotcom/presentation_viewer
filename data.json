@@ -3,12 +3,6 @@
   "date": "May 28, 2026",
   "speakers": [
     {
-      "id": 1,
-      "name": "Aman",
-      "topic": "RNA Sequencing Study",
-      "slides": "https://docs.google.com/presentation/d/127oCi9ffajH8r85b7cpY5Tqx34wkdZhoAHVWancol4c/embed?start=false&loop=false"
-    },
-    {
       "id": 2,
       "name": "Aparna",
       "topic": "Genomics",
