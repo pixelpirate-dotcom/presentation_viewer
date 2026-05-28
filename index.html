@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Computational Biology Team</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f7fbff;
+      color: #0c2a40;
+    }
+
+    /* ── Animations ── */
+    @keyframes grad-move  { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+    @keyframes float-up   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes shimmer-x  { 0%{transform:translateX(-100%)} 100%{transform:translateX(220%)} }
+    @keyframes pulse-glow { 0%,100%{opacity:1} 50%{opacity:0.45} }
+    @keyframes spin        { to{transform:rotate(360deg)} }
+    @keyframes slide-up    { from{transform:translateY(14px);opacity:0} to{transform:translateY(0);opacity:1} }
+    @keyframes admin-pulse {
+      0%,100% { box-shadow: 0 0 0 2px rgba(52,211,153,0.4); }
+      50%      { box-shadow: 0 0 0 5px rgba(52,211,153,0.12); }
+    }
+
+    /* ── Shell ── */
+    .shell { height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    .header {
+      height: 62px;
+      background: linear-gradient(135deg, #0a3352, #0c4a6e, #093050, #0c4a6e, #0a3352);
+      background-size: 300% 300%;
+      animation: grad-move 10s ease infinite;
+      color: white;
+      padding: 0 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(186,230,253,0.15);
+    }
+
+    .header-title-wrap { display: flex; flex-direction: column; }
+    .header-top-line   { display: flex; align-items: center; gap: 8px; }
+    .header-dash       { color: rgba(125,211,252,0.45); font-size: 11px; letter-spacing: 2px; }
+    .header-title      { font-size: 14px; font-weight: 300; color: white; letter-spacing: 3px; text-transform: uppercase; }
+    .header-title em   { font-style: normal; font-weight: 700; color: #7dd3fc; }
+    .header-sub-line   { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+    .header-rule       { flex: 1; max-width: 36px; height: 1px; background: rgba(125,211,252,0.2); }
+    .header-sub        { font-size: 8px; color: rgba(186,230,253,0.4); letter-spacing: 2px; text-transform: uppercase; }
+
+    .header-right { display: flex; align-items: center; gap: 9px; }
+    .header-date  {
+      font-size: 11px;
+      color: rgba(186,230,253,0.55);
+      background: rgba(255,255,255,0.07);
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(186,230,253,0.14);
+    }
+
+    /* Header buttons */
+    .btn-header {
+      padding: 6px 15px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.1s;
+      border: none;
+    }
+    .btn-header:active { transform: scale(0.97); }
+
+    .btn-admin {
+      background: transparent;
+      color: rgba(186,230,253,0.6);
+      border: 1px solid rgba(186,230,253,0.2);
+    }
+    .btn-admin:hover { background: rgba(255,255,255,0.07); color: rgba(186,230,253,0.85); }
+
+    /* Green admin dot — visible only in admin mode */
+    .admin-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #34d399;
+      display: none;
+      flex-shrink: 0;
+      animation: admin-pulse 2s ease-in-out infinite;
+    }
+    body.admin-mode .admin-dot { display: block; }
+
+    .btn-add-link {
+      background: rgba(125,211,252,0.1);
+      color: #7dd3fc;
+      border: 1px solid rgba(125,211,252,0.22);
+    }
+    .btn-add-link:hover { background: rgba(125,211,252,0.18); }
+
+    .btn-add-speaker {
+      background: white;
+      color: #0c4a6e;
+      font-weight: 700;
+    }
+    .btn-add-speaker:hover { background: #f0f9ff; }
+
+    /* ── Body ── */
+    .body { flex: 1; display: flex; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 210px;
+      background: white;
+      border-right: 1px solid #e0f2fe;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-heading {
+      padding: 13px 16px 11px;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: #bae6fd;
+      border-bottom: 1px solid #f0f9ff;
+    }
+    .speaker-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+    .speaker-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px 11px 16px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      border-bottom: 1px solid #f8fbff;
+      transition: background 0.13s, border-color 0.13s;
+    }
+    .speaker-item:hover { background: #f0f9ff; }
+    .speaker-item.active {
+      background: #f0f9ff;
+      border-left-color: #0284c7;
+    }
+
+    .speaker-num {
+      font-size: 9px; color: #e2f0fb; font-style: italic; min-width: 16px;
+    }
+    .speaker-item.active .speaker-num { color: #7dd3fc; }
+
+    .speaker-info { flex: 1; min-width: 0; }
+    .speaker-name {
+      font-size: 13px; font-weight: 600; color: #334155;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .speaker-item.active .speaker-name { color: #0c4a6e; }
+    .speaker-topic {
+      font-size: 10px; color: #94a3b8; margin-top: 2px; font-style: italic;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .speaker-item.active .speaker-topic { color: #7dd3fc; }
+
+    .speaker-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .speaker-dot.linked { background: #0284c7; animation: pulse-glow 3s ease-in-out infinite; }
+
+    /* Minus remove button — admin mode only */
+    .btn-remove-speaker {
+      display: none;
+      background: none;
+      border: 1.5px solid #e0e0e0;
+      color: #bbb;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      padding: 0;
+      line-height: 1;
+    }
+    .btn-remove-speaker:hover { border-color: #e53935; color: #e53935; background: #fef2f2; }
+    body.admin-mode .btn-remove-speaker { display: flex; }
+    body.admin-mode .speaker-dot { display: none; }
+
+    /* ── Viewer ── */
+    .viewer { flex: 1; display: flex; flex-direction: column; background: #f7fbff; }
+
+    .viewer-bar {
+      background: white;
+      border-bottom: 1px solid #e0f2fe;
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .viewer-speaker-name  { font-size: 14px; font-weight: 600; color: #0c4a6e; letter-spacing: 0.3px; }
+    .viewer-speaker-topic { font-size: 10px; color: #94a3b8; margin-top: 2px; font-style: italic; }
+
+    .btn-open {
+      background: transparent;
+      color: #0284c7;
+      border: 1.5px solid #0284c7;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-open:hover { background: #0284c7; color: white; }
+
+    .viewer-frame { flex: 1; position: relative; }
+    .viewer-frame iframe { width: 100%; height: 100%; border: none; display: block; }
+
+    /* ── States ── */
+    .placeholder, .error-state, .loading-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+    }
+    .placeholder .icon { font-size: 44px; opacity: 0.5; }
+    .placeholder h2    { font-size: 15px; font-weight: 600; color: #7dd3fc; letter-spacing: 1px; }
+    .placeholder p     { font-size: 12px; color: #94a3b8; font-style: italic; }
+
+    .error-state .icon { font-size: 34px; opacity: 0.6; }
+    .error-state p     { font-size: 13px; color: #64748b; text-align: center; }
+
+    .btn-add-link-inline {
+      margin-top: 4px;
+      background: transparent; color: #0284c7;
+      border: 1.5px solid #0284c7;
+      padding: 7px 20px; border-radius: 6px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-add-link-inline:hover { background: #0284c7; color: white; }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2.5px solid #e0f2fe;
+      border-top-color: #0284c7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,30,50,0.4); backdrop-filter: blur(4px);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white; border-radius: 14px; width: 420px;
+      box-shadow: 0 24px 60px rgba(10,30,50,0.2);
+      overflow: hidden; animation: slide-up 0.18s ease;
+    }
+    .modal-header {
+      background: linear-gradient(135deg, #0a3352, #0c4a6e);
+      color: white; padding: 18px 22px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+    .modal-close {
+      background: rgba(255,255,255,0.12); border: none; color: white;
+      width: 28px; height: 28px; border-radius: 50%; font-size: 13px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.25); }
+    .modal-body   { padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+    .modal-footer { padding: 14px 22px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 11px; font-weight: 700; color: #475569;
+      text-transform: uppercase; letter-spacing: 0.8px;
+    }
+    .field label .req { color: #ef4444; margin-left: 2px; }
+    .field label .opt { color: #94a3b8; font-weight: 400; font-size: 11px; text-transform: none; letter-spacing: 0; }
+    .field input, .field select {
+      border: 1.5px solid #e2e8f0; border-radius: 7px;
+      padding: 10px 13px; font-size: 13px; color: #1e293b;
+      outline: none; transition: border-color 0.15s;
+      background: white; font-family: inherit;
+    }
+    .field input:focus, .field select:focus { border-color: #0284c7; }
+    .field input::placeholder { color: #cbd5e1; }
+    .field .hint  { font-size: 11px; color: #94a3b8; margin-top: -2px; }
+    .field-error  { font-size: 11px; color: #ef4444; display: none; }
+    .field input.invalid { border-color: #ef4444; }
+
+    .btn-cancel {
+      background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;
+      padding: 9px 20px; border-radius: 7px; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-cancel:hover { background: #f1f5f9; }
+    .btn-submit {
+      background: linear-gradient(135deg, #0369a1, #0284c7);
+      color: white; border: none;
+      padding: 9px 22px; border-radius: 7px; font-size: 13px;
+      font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-submit:hover { opacity: 0.9; }
+    .btn-danger {
+      background: #ef4444; color: white; border: none;
+      padding: 9px 22px; border-radius: 7px; font-size: 13px;
+      font-weight: 700; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-danger:hover { background: #dc2626; }
+
+    #confirmModal .modal { width: 360px; }
+    #confirmModal .modal-header { background: linear-gradient(135deg, #7f1d1d, #dc2626); }
+    .confirm-body { padding: 26px 22px 14px; text-align: center; }
+    .confirm-body .confirm-icon { font-size: 34px; margin-bottom: 10px; opacity: 0.8; }
+    .confirm-body p { font-size: 14px; color: #475569; line-height: 1.6; }
+    .confirm-body strong { color: #0c2a40; }
+
+    /* ── Scrollbar ── */
+    .speaker-list::-webkit-scrollbar { width: 3px; }
+    .speaker-list::-webkit-scrollbar-track { background: transparent; }
+    .speaker-list::-webkit-scrollbar-thumb { background: #bae6fd; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-title-wrap">
+      <div class="header-top-line">
+        <span class="header-dash">——</span>
+        <span class="header-title">Computational <em>Biology</em> Team</span>
+        <span class="header-dash">——</span>
+      </div>
+      <div class="header-sub-line">
+        <div class="header-rule"></div>
+        <span class="header-sub" id="sessionLabel">loading…</span>
+        <div class="header-rule"></div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <span class="header-date" id="dateLabel"></span>
+
+      <button class="btn-header btn-admin" onclick="handleAdminClick()">
+        <div class="admin-dot"></div>
+        Admin
+      </button>
+      <button class="btn-header btn-add-link" onclick="openModal('addLinkModal')">
+        + Add Slides
+      </button>
+      <button class="btn-header btn-add-speaker" onclick="openModal('addSpeakerModal')">
+        + Add Speaker
+      </button>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sidebar-heading">Speakers</div>
+      <div class="speaker-list" id="speakerList"></div>
+    </aside>
+    <main class="viewer" id="viewer">
+      <div class="placeholder">
+        <div class="icon">🖥</div>
+        <h2>Select a Speaker</h2>
+        <p>Click a name on the left to load their slides</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ── Admin Login Modal ── -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Admin Panel</h3>
+      <button class="modal-close" onclick="closeModal('adminLoginModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Password <span class="req">*</span></label>
+        <input type="password" id="adminPassword" placeholder="Enter password"
+               autocomplete="off" onkeydown="if(event.key==='Enter') submitAdminLogin()" />
+        <span class="field-error" id="adminPasswordError">Incorrect password.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('adminLoginModal')">Cancel</button>
+      <button class="btn-submit" onclick="submitAdminLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Speaker Modal ── -->
+<div class="modal-overlay" id="addSpeakerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Speaker</h3>
+      <button class="modal-close" onclick="closeModal('addSpeakerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Name <span class="req">*</span></label>
+        <input type="text" id="newName" placeholder="e.g. Alice" autocomplete="off"
+               onkeydown="if(event.key==='Enter') submitAddSpeaker()" />
+        <span class="field-error" id="nameError">Name is required.</span>
+      </div>
+      <div class="field">
+        <label>Topic <span class="opt">(optional)</span></label>
+        <input type="text" id="newTopic" placeholder="e.g. RNA Sequencing" autocomplete="off" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addSpeakerModal')">Cancel</button>
+      <button class="btn-submit" onclick="submitAddSpeaker()">Add Speaker</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Slide Link Modal ── -->
+<div class="modal-overlay" id="addLinkModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Slide Link</h3>
+      <button class="modal-close" onclick="closeModal('addLinkModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Speaker <span class="req">*</span></label>
+        <select id="linkSpeakerSelect"></select>
+      </div>
+      <div class="field">
+        <label>Google Slides URL <span class="req">*</span></label>
+        <input type="url" id="linkUrl" placeholder="https://docs.google.com/presentation/d/…"
+               autocomplete="off" onkeydown="if(event.key==='Enter') submitAddLink()" />
+        <span class="hint">Paste any Google Slides link — any format works.</span>
+        <span class="field-error" id="linkError">Please enter a valid Google Slides URL.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addLinkModal')">Cancel</button>
+      <button class="btn-submit" onclick="submitAddLink()">Save Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Remove Modal ── -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Remove Speaker</h3>
+      <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
+    </div>
+    <div class="confirm-body">
+      <div class="confirm-icon">🗑</div>
+      <p>Remove <strong id="confirmName"></strong> from the list?<br>This cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn-danger" onclick="confirmDelete()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ADMIN_PASSWORD = '0044';
+  const LS_KEY         = 'compbio_speakers';
+
+  let speakers     = [];
+  let activeId     = null;
+  let deleteTarget = null;
+
+  // ── Init ──
+  fetch('data.json')
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+      document.getElementById('sessionLabel').textContent = data.session || 'team session';
+      document.getElementById('dateLabel').textContent    = data.date    || '';
+
+      const saved = getSaved();
+      speakers = data.speakers.map(s => {
+        const ov = saved.find(o => o.id === s.id);
+        return ov ? { ...s, ...ov } : s;
+      });
+      saved.forEach(o => {
+        if (!speakers.find(s => s.id === o.id)) speakers.push(o);
+      });
+
+      if (sessionStorage.getItem('compbio_admin') === '1') activateAdmin(false);
+      renderSidebar();
+    })
+    .catch(() => {
+      document.getElementById('sessionLabel').textContent = 'could not load data.json';
+    });
+
+  // ── localStorage ──
+  function getSaved() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+  }
+  function saveOverride(speaker) {
+    const saved = getSaved();
+    const idx   = saved.findIndex(s => s.id === speaker.id);
+    if (idx >= 0) saved[idx] = speaker; else saved.push(speaker);
+    localStorage.setItem(LS_KEY, JSON.stringify(saved));
+  }
+  function deleteOverride(id) {
+    localStorage.setItem(LS_KEY, JSON.stringify(getSaved().filter(s => s.id !== id)));
+  }
+
+  // ── Render sidebar ──
+  function renderSidebar() {
+    const list = document.getElementById('speakerList');
+    list.innerHTML = '';
+    speakers.forEach((s, i) => {
+      const hasLink = s.slides && !s.slides.includes('YOUR_SLIDE_ID_HERE') && s.slides.length > 0;
+      const item    = document.createElement('div');
+      item.className = 'speaker-item' + (s.id === activeId ? ' active' : '');
+      item.dataset.id = s.id;
+      item.innerHTML = `
+        <span class="speaker-num">${String(i + 1).padStart(2, '0')}</span>
+        <div class="speaker-info">
+          <div class="speaker-name">${s.name}</div>
+          <div class="speaker-topic">${s.topic || '—'}</div>
+        </div>
+        <button class="btn-remove-speaker" title="Remove ${s.name}"
+                onclick="askDelete(event, ${s.id})">−</button>
+        <div class="speaker-dot ${hasLink ? 'linked' : ''}"></div>
+      `;
+      item.addEventListener('click', e => {
+        if (e.target.classList.contains('btn-remove-speaker')) return;
+        loadSpeaker(s);
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // ── Load slides ──
+  function loadSpeaker(s) {
+    document.querySelectorAll('.speaker-item').forEach(el =>
+      el.classList.toggle('active', Number(el.dataset.id) === s.id)
+    );
+    activeId = s.id;
+
+    const viewer  = document.getElementById('viewer');
+    const hasLink = s.slides && !s.slides.includes('YOUR_SLIDE_ID_HERE') && s.slides.length > 0;
+
+    const bar = `
+      <div class="viewer-bar">
+        <div>
+          <div class="viewer-speaker-name">${s.name}</div>
+          <div class="viewer-speaker-topic">${s.topic || 'No topic assigned'}</div>
+        </div>
+        ${hasLink ? `<a class="btn-open" href="${s.slides.replace(/\/embed.*$/, '')}" target="_blank">Open in Slides ↗</a>` : ''}
+      </div>
+    `;
+
+    if (!hasLink) {
+      viewer.innerHTML = bar + `
+        <div class="error-state">
+          <div class="icon">📋</div>
+          <p>No slides added for <strong>${s.name}</strong> yet.</p>
+          <button class="btn-add-link-inline" onclick="openLinkModalFor(${s.id})">+ Add Slide Link</button>
+        </div>
+      `;
+      return;
+    }
+
+    viewer.innerHTML = bar;
+
+    const loading = document.createElement('div');
+    loading.className = 'loading-state';
+    loading.innerHTML = '<div class="spinner"></div>';
+
+    const frame  = document.createElement('div');
+    frame.className = 'viewer-frame';
+    frame.style.display = 'none';
+
+    const iframe = document.createElement('iframe');
+    iframe.src   = s.slides;
+    iframe.allow = 'autoplay';
+    iframe.title = s.name;
+    iframe.addEventListener('load', () => {
+      loading.remove();
+      frame.style.display = '';
+    });
+    frame.appendChild(iframe);
+    viewer.appendChild(loading);
+    viewer.appendChild(frame);
+  }
+
+  // ── URL helper ──
+  function toEmbedUrl(url) {
+    url = url.trim();
+    if (url.includes('/embed')) return url;
+    const m = url.match(/\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return `https://docs.google.com/presentation/d/${m[1]}/embed?start=false&loop=false`;
+    return url;
+  }
+
+  // ── Admin ──
+  function handleAdminClick() {
+    if (document.body.classList.contains('admin-mode')) {
+      logoutAdmin();
+    } else {
+      openModal('adminLoginModal');
+      setTimeout(() => document.getElementById('adminPassword').focus(), 80);
+    }
+  }
+  function submitAdminLogin() {
+    const val = document.getElementById('adminPassword').value;
+    if (val !== ADMIN_PASSWORD) { setError('adminPasswordError', 'adminPassword', true); return; }
+    setError('adminPasswordError', 'adminPassword', false);
+    closeModal('adminLoginModal');
+    activateAdmin(true);
+  }
+  function activateAdmin(saveSession) {
+    document.body.classList.add('admin-mode');
+    if (saveSession) sessionStorage.setItem('compbio_admin', '1');
+  }
+  function logoutAdmin() {
+    document.body.classList.remove('admin-mode');
+    sessionStorage.removeItem('compbio_admin');
+  }
+
+  // ── Delete speaker ──
+  function askDelete(e, id) {
+    e.stopPropagation();
+    const s = speakers.find(sp => sp.id === id);
+    if (!s) return;
+    deleteTarget = id;
+    document.getElementById('confirmName').textContent = s.name;
+    openModal('confirmModal');
+  }
+  function confirmDelete() {
+    if (deleteTarget === null) return;
+    speakers = speakers.filter(s => s.id !== deleteTarget);
+    deleteOverride(deleteTarget);
+    if (activeId === deleteTarget) {
+      activeId = null;
+      document.getElementById('viewer').innerHTML = `
+        <div class="placeholder">
+          <div class="icon">🖥</div>
+          <h2>Select a Speaker</h2>
+          <p>Click a name on the left to load their slides</p>
+        </div>`;
+    }
+    deleteTarget = null;
+    closeModal('confirmModal');
+    renderSidebar();
+  }
+
+  // ── Modals ──
+  function openModal(id) {
+    if (id === 'addLinkModal') populateLinkSelect(null);
+    document.getElementById(id).classList.add('open');
+  }
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    if (id === 'adminLoginModal') {
+      document.getElementById('adminPassword').value = '';
+      setError('adminPasswordError', 'adminPassword', false);
+    }
+    if (id === 'addSpeakerModal') {
+      document.getElementById('newName').value  = '';
+      document.getElementById('newTopic').value = '';
+      setError('nameError', 'newName', false);
+    }
+    if (id === 'addLinkModal') {
+      document.getElementById('linkUrl').value = '';
+      setError('linkError', 'linkUrl', false);
+    }
+  }
+  document.querySelectorAll('.modal-overlay').forEach(o =>
+    o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
+  );
+  function setError(errId, inputId, show) {
+    document.getElementById(errId).style.display = show ? 'block' : 'none';
+    document.getElementById(inputId).classList.toggle('invalid', show);
+  }
+
+  // ── Add Speaker ──
+  function submitAddSpeaker() {
+    const name  = document.getElementById('newName').value.trim();
+    const topic = document.getElementById('newTopic').value.trim();
+    if (!name) { setError('nameError', 'newName', true); return; }
+    setError('nameError', 'newName', false);
+    const newId = speakers.length ? Math.max(...speakers.map(s => s.id)) + 1 : 1;
+    const s = { id: newId, name, topic, slides: '' };
+    speakers.push(s);
+    saveOverride(s);
+    renderSidebar();
+    closeModal('addSpeakerModal');
+  }
+
+  // ── Add Slide Link ──
+  function populateLinkSelect(preId) {
+    document.getElementById('linkSpeakerSelect').innerHTML = speakers.map(s =>
+      `<option value="${s.id}" ${s.id === preId ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+  }
+  function openLinkModalFor(id) {
+    populateLinkSelect(id);
+    document.getElementById('addLinkModal').classList.add('open');
+  }
+  function submitAddLink() {
+    const url = document.getElementById('linkUrl').value.trim();
+    const id  = Number(document.getElementById('linkSpeakerSelect').value);
+    if (!url || !url.includes('google.com')) { setError('linkError', 'linkUrl', true); return; }
+    setError('linkError', 'linkUrl', false);
+    const s = speakers.find(sp => sp.id === id);
+    if (s) {
+      s.slides = toEmbedUrl(url);
+      saveOverride(s);
+      renderSidebar();
+      if (activeId === id) loadSpeaker(s);
+    }
+    closeModal('addLinkModal');
+  }
+</script>
+
+</body>
+</html>

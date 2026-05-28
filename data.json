@@ -1,0 +1,36 @@
+{
+  "session": "CompBio Team Presentations",
+  "date": "May 28, 2026",
+  "speakers": [
+    {
+      "id": 1,
+      "name": "Aman",
+      "topic": "RNA Sequencing Study",
+      "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
+    },
+    {
+      "id": 2,
+      "name": "Bob",
+      "topic": "CRISPR Gene Editing",
+      "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
+    },
+    {
+      "id": 3,
+      "name": "Carol",
+      "topic": "Protein Folding",
+      "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
+    },
+    {
+      "id": 4,
+      "name": "Dave",
+      "topic": "ML in Biology",
+      "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
+    },
+    {
+      "id": 5,
+      "name": "Eve",
+      "topic": "Single Cell Analysis",
+      "slides": "https://docs.google.com/presentation/d/YOUR_SLIDE_ID_HERE/embed?start=false&loop=false"
+    }
+  ]
+}
