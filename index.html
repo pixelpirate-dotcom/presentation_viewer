@@ -490,6 +490,7 @@
 <script>
   const ADMIN_PASSWORD = '0044';
   const LS_KEY         = 'compbio_speakers';
+  const LS_DELETED     = 'compbio_deleted';
 
   let speakers     = [];
   let activeId     = null;
@@ -502,13 +503,17 @@
       document.getElementById('sessionLabel').textContent = data.session || 'team session';
       document.getElementById('dateLabel').textContent    = data.date    || '';
 
-      const saved = getSaved();
-      speakers = data.speakers.map(s => {
-        const ov = saved.find(o => o.id === s.id);
-        return ov ? { ...s, ...ov } : s;
-      });
+      const saved      = getSaved();
+      const deletedIds = getDeleted();
+
+      speakers = data.speakers
+        .filter(s => !deletedIds.includes(s.id))
+        .map(s => {
+          const ov = saved.find(o => o.id === s.id);
+          return ov ? { ...s, ...ov } : s;
+        });
       saved.forEach(o => {
-        if (!speakers.find(s => s.id === o.id)) speakers.push(o);
+        if (!speakers.find(s => s.id === o.id) && !deletedIds.includes(o.id)) speakers.push(o);
       });
 
       if (sessionStorage.getItem('compbio_admin') === '1') activateAdmin(false);
@@ -522,14 +527,23 @@
   function getSaved() {
     try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
   }
+  function getDeleted() {
+    try { return JSON.parse(localStorage.getItem(LS_DELETED)) || []; } catch { return []; }
+  }
   function saveOverride(speaker) {
     const saved = getSaved();
     const idx   = saved.findIndex(s => s.id === speaker.id);
     if (idx >= 0) saved[idx] = speaker; else saved.push(speaker);
     localStorage.setItem(LS_KEY, JSON.stringify(saved));
+    // if re-adding a previously deleted id, unmark it
+    const deleted = getDeleted().filter(d => d !== speaker.id);
+    localStorage.setItem(LS_DELETED, JSON.stringify(deleted));
   }
   function deleteOverride(id) {
     localStorage.setItem(LS_KEY, JSON.stringify(getSaved().filter(s => s.id !== id)));
+    const deleted = getDeleted();
+    if (!deleted.includes(id)) deleted.push(id);
+    localStorage.setItem(LS_DELETED, JSON.stringify(deleted));
   }
 
   // ── Render sidebar ──
