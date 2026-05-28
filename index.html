@@ -28,6 +28,8 @@
       0%,100% { box-shadow: 0 0 0 2px rgba(52,211,153,0.4); }
       50%      { box-shadow: 0 0 0 5px rgba(52,211,153,0.12); }
     }
+    @keyframes toast-in  { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes toast-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
 
     /* ── Shell ── */
     .shell { height: 100vh; display: flex; flex-direction: column; }
@@ -326,6 +328,7 @@
       font-weight: 700; cursor: pointer; transition: opacity 0.15s;
     }
     .btn-submit:hover { opacity: 0.9; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-danger {
       background: #ef4444; color: white; border: none;
       padding: 9px 22px; border-radius: 7px; font-size: 13px;
@@ -339,6 +342,43 @@
     .confirm-body .confirm-icon { font-size: 34px; margin-bottom: 10px; opacity: 0.8; }
     .confirm-body p { font-size: 14px; color: #475569; line-height: 1.6; }
     .confirm-body strong { color: #0c2a40; }
+
+    /* ── Toast ── */
+    .toast-container {
+      position: fixed; top: 16px; right: 16px; z-index: 200;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      animation: toast-in 0.25s ease;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      max-width: 340px;
+    }
+    .toast.leaving { animation: toast-out 0.25s ease forwards; }
+    .toast.success { background: #059669; }
+    .toast.error   { background: #dc2626; }
+    .toast.info    { background: #0284c7; }
+    .toast .toast-icon { font-size: 14px; flex-shrink: 0; }
+
+    /* ── Divider ── */
+    .field-divider {
+      border: none;
+      border-top: 1px solid #f0f4f8;
+      margin: 4px 0;
+    }
+    .field-section-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #94a3b8;
+      margin-bottom: -4px;
+    }
 
     /* ── Scrollbar ── */
     .speaker-list::-webkit-scrollbar { width: 3px; }
@@ -397,19 +437,46 @@
   </div>
 </div>
 
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
 <!-- ── Admin Login Modal ── -->
 <div class="modal-overlay" id="adminLoginModal">
   <div class="modal">
     <div class="modal-header">
-      <h3>Admin Panel</h3>
+      <h3>Admin Login</h3>
       <button class="modal-close" onclick="closeModal('adminLoginModal')">✕</button>
     </div>
     <div class="modal-body">
       <div class="field">
         <label>Password <span class="req">*</span></label>
-        <input type="password" id="adminPassword" placeholder="Enter password"
+        <input type="password" id="adminPassword" placeholder="Enter admin password"
                autocomplete="off" onkeydown="if(event.key==='Enter') submitAdminLogin()" />
         <span class="field-error" id="adminPasswordError">Incorrect password.</span>
+      </div>
+      <hr class="field-divider">
+      <div class="field-section-label">GitHub Sync</div>
+      <div class="field">
+        <label>Repository <span class="req">*</span></label>
+        <input type="text" id="ghRepo" placeholder="owner/repo  (e.g. john/compbio-slides)"
+               autocomplete="off" />
+        <span class="hint">The GitHub repo where data.json lives.</span>
+        <span class="field-error" id="ghRepoError">Enter owner/repo format.</span>
+      </div>
+      <div class="field">
+        <label>Personal Access Token <span class="req">*</span></label>
+        <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+               autocomplete="off" />
+        <span class="hint">Needs "repo" scope. <a href="https://github.com/settings/tokens/new?scopes=repo&description=CompBio+Slides" target="_blank" style="color:#0284c7;">Generate one →</a></span>
+        <span class="field-error" id="ghTokenError">Token is required.</span>
+      </div>
+      <div class="field">
+        <label>Branch <span class="opt">(default: main)</span></label>
+        <input type="text" id="ghBranch" placeholder="main" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>File path <span class="opt">(default: data.json)</span></label>
+        <input type="text" id="ghFilePath" placeholder="data.json" autocomplete="off" />
       </div>
     </div>
     <div class="modal-footer">
@@ -440,7 +507,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('addSpeakerModal')">Cancel</button>
-      <button class="btn-submit" onclick="submitAddSpeaker()">Add Speaker</button>
+      <button class="btn-submit" id="btnSubmitSpeaker" onclick="submitAddSpeaker()">Add Speaker</button>
     </div>
   </div>
 </div>
@@ -467,7 +534,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('addLinkModal')">Cancel</button>
-      <button class="btn-submit" onclick="submitAddLink()">Save Link</button>
+      <button class="btn-submit" id="btnSubmitLink" onclick="submitAddLink()">Save Link</button>
     </div>
   </div>
 </div>
@@ -485,68 +552,130 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('confirmModal')">Cancel</button>
-      <button class="btn-danger" onclick="confirmDelete()">Remove</button>
+      <button class="btn-danger" id="btnConfirmDelete" onclick="confirmDelete()">Remove</button>
     </div>
   </div>
 </div>
 
 <script>
   const ADMIN_PASSWORD = '0044';
-  const LS_KEY         = 'compbio_speakers';
-  const LS_DELETED     = 'compbio_deleted';
 
-  let speakers     = [];
-  let activeId     = null;
-  let deleteTarget = null;
+  let speakers       = [];
+  let sessionData    = {};   // full JSON payload
+  let activeId       = null;
+  let deleteTarget   = null;
+  let ghSha          = null; // current SHA of data.json on GitHub (needed for updates)
 
-  // ── Init ──
-  fetch('data.json')
-    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-    .then(data => {
-      document.getElementById('sessionLabel').textContent = data.session || 'team session';
-      document.getElementById('dateLabel').textContent    = data.date    || '';
+  // ── GitHub config (stored in sessionStorage while admin is logged in) ──
+  function getGH() {
+    try { return JSON.parse(sessionStorage.getItem('compbio_gh')) || null; } catch { return null; }
+  }
+  function saveGH(cfg) { sessionStorage.setItem('compbio_gh', JSON.stringify(cfg)); }
+  function clearGH()   { sessionStorage.removeItem('compbio_gh'); }
 
-      const saved      = getSaved();
-      const deletedIds = getDeleted();
+  // ── Toast notifications ──
+  function toast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    const icons = { success: '✓', error: '✕', info: 'ℹ' };
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span class="toast-icon">${icons[type] || ''}</span>${msg}`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('leaving');
+      setTimeout(() => el.remove(), 300);
+    }, 3500);
+  }
 
-      speakers = data.speakers
-        .filter(s => !deletedIds.includes(s.id))
-        .map(s => {
-          const ov = saved.find(o => o.id === s.id);
-          return ov ? { ...s, ...ov } : s;
-        });
-      saved.forEach(o => {
-        if (!speakers.find(s => s.id === o.id) && !deletedIds.includes(o.id)) speakers.push(o);
+  // ── Init: fetch data.json with cache-busting ──
+  function loadData() {
+    fetch('data.json?_t=' + Date.now())
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        sessionData = data;
+        document.getElementById('sessionLabel').textContent = data.session || 'team session';
+        document.getElementById('dateLabel').textContent    = data.date    || '';
+        speakers = data.speakers || [];
+        // restore admin session if still valid
+        if (sessionStorage.getItem('compbio_admin') === '1') activateAdmin(false);
+        renderSidebar();
+      })
+      .catch(() => {
+        document.getElementById('sessionLabel').textContent = 'could not load data.json';
+      });
+  }
+  loadData();
+
+  // ── Build the JSON payload for committing ──
+  function buildPayload() {
+    return {
+      session: sessionData.session || 'CompBio Team Presentations',
+      date: sessionData.date || '',
+      speakers: speakers.map(s => ({
+        id: s.id,
+        name: s.name,
+        topic: s.topic || '',
+        slides: s.slides || ''
+      }))
+    };
+  }
+
+  // ── GitHub API: commit data.json ──
+  async function commitToGitHub(message) {
+    const gh = getGH();
+    if (!gh) {
+      toast('Not logged in as admin — changes are local only.', 'error');
+      return false;
+    }
+
+    const { owner, repo, branch, filePath, token } = gh;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+
+    try {
+      // 1. Get current file SHA (needed for update)
+      const getResp = await fetch(`${apiUrl}?ref=${branch}&_t=${Date.now()}`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
       });
 
-      if (sessionStorage.getItem('compbio_admin') === '1') activateAdmin(false);
-      renderSidebar();
-    })
-    .catch(() => {
-      document.getElementById('sessionLabel').textContent = 'could not load data.json';
-    });
+      let sha = null;
+      if (getResp.ok) {
+        const fileInfo = await getResp.json();
+        sha = fileInfo.sha;
+      }
+      // If 404, file doesn't exist yet — we'll create it (sha stays null)
 
-  // ── localStorage ──
-  function getSaved() {
-    try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
-  }
-  function getDeleted() {
-    try { return JSON.parse(localStorage.getItem(LS_DELETED)) || []; } catch { return []; }
-  }
-  function saveOverride(speaker) {
-    const saved = getSaved();
-    const idx   = saved.findIndex(s => s.id === speaker.id);
-    if (idx >= 0) saved[idx] = speaker; else saved.push(speaker);
-    localStorage.setItem(LS_KEY, JSON.stringify(saved));
-    // if re-adding a previously deleted id, unmark it
-    const deleted = getDeleted().filter(d => d !== speaker.id);
-    localStorage.setItem(LS_DELETED, JSON.stringify(deleted));
-  }
-  function deleteOverride(id) {
-    localStorage.setItem(LS_KEY, JSON.stringify(getSaved().filter(s => s.id !== id)));
-    const deleted = getDeleted();
-    if (!deleted.includes(id)) deleted.push(id);
-    localStorage.setItem(LS_DELETED, JSON.stringify(deleted));
+      // 2. Commit updated content
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(buildPayload(), null, 2))));
+      const body = {
+        message: message || 'Update data.json via CompBio admin',
+        content: content,
+        branch: branch
+      };
+      if (sha) body.sha = sha;
+
+      const putResp = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!putResp.ok) {
+        const err = await putResp.json();
+        throw new Error(err.message || putResp.statusText);
+      }
+
+      toast('Saved & pushed to GitHub', 'success');
+      return true;
+
+    } catch (err) {
+      console.error('GitHub commit failed:', err);
+      toast('GitHub sync failed: ' + err.message, 'error');
+      return false;
+    }
   }
 
   // ── Render sidebar ──
@@ -644,17 +773,47 @@
     if (document.body.classList.contains('admin-mode')) {
       logoutAdmin();
     } else {
+      // Pre-fill saved GitHub settings if any
+      const gh = getGH();
+      if (gh) {
+        document.getElementById('ghRepo').value     = `${gh.owner}/${gh.repo}`;
+        document.getElementById('ghToken').value    = gh.token;
+        document.getElementById('ghBranch').value   = gh.branch !== 'main' ? gh.branch : '';
+        document.getElementById('ghFilePath').value = gh.filePath !== 'data.json' ? gh.filePath : '';
+      }
       openModal('adminLoginModal');
       setTimeout(() => document.getElementById('adminPassword').focus(), 80);
     }
   }
+
   function submitAdminLogin() {
-    const val = document.getElementById('adminPassword').value;
-    if (val !== ADMIN_PASSWORD) { setError('adminPasswordError', 'adminPassword', true); return; }
+    const pwd = document.getElementById('adminPassword').value;
+    if (pwd !== ADMIN_PASSWORD) { setError('adminPasswordError', 'adminPassword', true); return; }
     setError('adminPasswordError', 'adminPassword', false);
+
+    // Validate GitHub fields
+    const repoStr = document.getElementById('ghRepo').value.trim();
+    const token   = document.getElementById('ghToken').value.trim();
+    const parts   = repoStr.split('/');
+
+    if (!repoStr || parts.length !== 2 || !parts[0] || !parts[1]) {
+      setError('ghRepoError', 'ghRepo', true); return;
+    }
+    setError('ghRepoError', 'ghRepo', false);
+
+    if (!token) { setError('ghTokenError', 'ghToken', true); return; }
+    setError('ghTokenError', 'ghToken', false);
+
+    const branch   = document.getElementById('ghBranch').value.trim()   || 'main';
+    const filePath = document.getElementById('ghFilePath').value.trim() || 'data.json';
+
+    saveGH({ owner: parts[0], repo: parts[1], branch, filePath, token });
+
     closeModal('adminLoginModal');
     activateAdmin(true);
+    toast('Admin mode active — changes sync to GitHub', 'success');
   }
+
   function activateAdmin(saveSession) {
     document.body.classList.add('admin-mode');
     if (saveSession) sessionStorage.setItem('compbio_admin', '1');
@@ -662,6 +821,8 @@
   function logoutAdmin() {
     document.body.classList.remove('admin-mode');
     sessionStorage.removeItem('compbio_admin');
+    clearGH();
+    toast('Logged out of admin mode', 'info');
   }
 
   // ── Delete speaker ──
@@ -673,10 +834,14 @@
     document.getElementById('confirmName').textContent = s.name;
     openModal('confirmModal');
   }
-  function confirmDelete() {
+  async function confirmDelete() {
     if (deleteTarget === null) return;
+    const btn = document.getElementById('btnConfirmDelete');
+    btn.disabled = true; btn.textContent = 'Removing…';
+
     speakers = speakers.filter(s => s.id !== deleteTarget);
-    deleteOverride(deleteTarget);
+    const name = document.getElementById('confirmName').textContent;
+
     if (activeId === deleteTarget) {
       activeId = null;
       document.getElementById('viewer').innerHTML = `
@@ -686,9 +851,13 @@
           <p>Click a name on the left to load their slides</p>
         </div>`;
     }
-    deleteTarget = null;
-    closeModal('confirmModal');
     renderSidebar();
+
+    await commitToGitHub(`Remove speaker: ${name}`);
+
+    deleteTarget = null;
+    btn.disabled = false; btn.textContent = 'Remove';
+    closeModal('confirmModal');
   }
 
   // ── Modals ──
@@ -701,6 +870,8 @@
     if (id === 'adminLoginModal') {
       document.getElementById('adminPassword').value = '';
       setError('adminPasswordError', 'adminPassword', false);
+      setError('ghRepoError', 'ghRepo', false);
+      setError('ghTokenError', 'ghToken', false);
     }
     if (id === 'addSpeakerModal') {
       document.getElementById('newName').value  = '';
@@ -721,16 +892,23 @@
   }
 
   // ── Add Speaker ──
-  function submitAddSpeaker() {
+  async function submitAddSpeaker() {
     const name  = document.getElementById('newName').value.trim();
     const topic = document.getElementById('newTopic').value.trim();
     if (!name) { setError('nameError', 'newName', true); return; }
     setError('nameError', 'newName', false);
+
+    const btn = document.getElementById('btnSubmitSpeaker');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
     const newId = speakers.length ? Math.max(...speakers.map(s => s.id)) + 1 : 1;
     const s = { id: newId, name, topic, slides: '' };
     speakers.push(s);
-    saveOverride(s);
     renderSidebar();
+
+    await commitToGitHub(`Add speaker: ${name}`);
+
+    btn.disabled = false; btn.textContent = 'Add Speaker';
     closeModal('addSpeakerModal');
   }
 
@@ -744,18 +922,25 @@
     populateLinkSelect(id);
     document.getElementById('addLinkModal').classList.add('open');
   }
-  function submitAddLink() {
+  async function submitAddLink() {
     const url = document.getElementById('linkUrl').value.trim();
     const id  = Number(document.getElementById('linkSpeakerSelect').value);
     if (!url || !url.includes('google.com')) { setError('linkError', 'linkUrl', true); return; }
     setError('linkError', 'linkUrl', false);
+
+    const btn = document.getElementById('btnSubmitLink');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
     const s = speakers.find(sp => sp.id === id);
     if (s) {
       s.slides = toEmbedUrl(url);
-      saveOverride(s);
       renderSidebar();
       if (activeId === id) loadSpeaker(s);
     }
+
+    await commitToGitHub(`Update slides for ${s ? s.name : 'speaker ' + id}`);
+
+    btn.disabled = false; btn.textContent = 'Save Link';
     closeModal('addLinkModal');
   }
 </script>
